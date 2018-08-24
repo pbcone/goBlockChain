@@ -55,6 +55,7 @@ func appendBlockToChain(chain []block, data ...block) []block {
 
 func (block *block) mineBlock() {
 	nonceSolved := false
+	hashTimer := time.Now()
 	for !nonceSolved {
 		newHash := sha256.New()
 		numberAndData := append([]byte(strconv.Itoa(block.blockNumber)), []byte(block.data)...)
@@ -63,13 +64,18 @@ func (block *block) mineBlock() {
 		newHash.Write(numberDataNonceAndPrevBlock)
 		block.hashOfCurrentBlock = newHash.Sum(nil)
 
-		if block.hashOfCurrentBlock[0] == 0 && block.hashOfCurrentBlock[1] == 0 && block.hashOfCurrentBlock[2] == 0 && block.hashOfCurrentBlock[3] == 0 {
-			// if block.hashOfCurrentBlock[0] == 0 && block.hashOfCurrentBlock[1] == 0 && block.hashOfCurrentBlock[2] == 0 {
+		// if block.hashOfCurrentBlock[0] == 0 && block.hashOfCurrentBlock[1] == 0 && block.hashOfCurrentBlock[2] == 0 && block.hashOfCurrentBlock[3] == 0 {
+		if block.hashOfCurrentBlock[0] == 0 && block.hashOfCurrentBlock[1] == 0 && block.hashOfCurrentBlock[2] == 0 {
 			// if block.hashOfCurrentBlock[0] == 0 && block.hashOfCurrentBlock[1] == 0 {
 			fmt.Println(`block: `, block.blockNumber, ` nonce: `, block.nonce)
 			nonceSolved = true
 		} else {
 			block.nonce++
+		}
+		if block.nonce%1000000 == 0 {
+			hashLap := time.Now()
+			difference := hashLap.Sub(hashTimer)
+			fmt.Println(`Hash/second `, float64(block.nonce)/difference.Seconds())
 		}
 	}
 
