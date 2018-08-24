@@ -1,32 +1,43 @@
 package main
 
 import (
+	"crypto/sha256"
 	"fmt"
-
-	"github.com/mitchellh/hashstructure"
+	"strconv"
+	"time"
 )
 
 type block struct {
 	blockNumber        int
 	data               string
-	previousBlockHash  uint64
-	hashOfCurrentBlock uint64
+	nonce              int
+	previousBlockHash  []byte
+	hashOfCurrentBlock []byte
 }
 
-func newBlock(c []block, data string) block {
-	nextBlockNumber := len(c)
+func newBlock(chain []block, data string) block {
+	nextBlockNumber := len(chain)
 	if nextBlockNumber == 0 {
-		//create start of chain
-	} else {
-		fmt.Println("Creating New Block number", nextBlockNumber)
-		nextBlock := block{
-			blockNumber:       nextBlockNumber,
-			data:              data,
-			previousBlockHash: c[0].hashOfCurrentBlock,
+		fmt.Println(`Creating Origin Block`)
+		originBlock := block{
+			blockNumber:        0,
+			data:               data,
+			nonce:              1,
+			previousBlockHash:  []byte{0},
+			hashOfCurrentBlock: []byte{0},
 		}
-		return nextBlock
+		originBlock.mineBlock()
+		return originBlock
 	}
-	return block{}
+	fmt.Println(`Creating New Block number`, nextBlockNumber)
+	nextBlock := block{
+		blockNumber:       nextBlockNumber,
+		data:              data,
+		previousBlockHash: chain[nextBlockNumber-1].hashOfCurrentBlock,
+	}
+	nextBlock.mineBlock()
+	return nextBlock
+
 }
 
 func appendBlockToChain(chain []block, data ...block) []block {
@@ -42,35 +53,46 @@ func appendBlockToChain(chain []block, data ...block) []block {
 	return chain
 }
 
-func (b *block) hashBlock() {
-	fmt.Println("hashing block number ", b.blockNumber)
-	hash, err := hashstructure.Hash(b, nil)
-	if err != nil {
-		panic(err)
+func (block *block) mineBlock() {
+	nonceSolved := false
+	for !nonceSolved {
+		newHash := sha256.New()
+		numberAndData := append([]byte(strconv.Itoa(block.blockNumber)), []byte(block.data)...)
+		numberDataAndNonce := append(numberAndData, []byte(strconv.Itoa(block.nonce))...)
+		numberDataNonceAndPrevBlock := append(numberDataAndNonce, block.previousBlockHash...)
+		newHash.Write(numberDataNonceAndPrevBlock)
+		block.hashOfCurrentBlock = newHash.Sum(nil)
+
+		if block.hashOfCurrentBlock[0] == 0 && block.hashOfCurrentBlock[1] == 0 && block.hashOfCurrentBlock[2] == 0 && block.hashOfCurrentBlock[3] == 0 {
+			// if block.hashOfCurrentBlock[0] == 0 && block.hashOfCurrentBlock[1] == 0 && block.hashOfCurrentBlock[2] == 0 {
+			// if block.hashOfCurrentBlock[0] == 0 && block.hashOfCurrentBlock[1] == 0 {
+			fmt.Println(`block: `, block.blockNumber, ` nonce: `, block.nonce)
+			nonceSolved = true
+		} else {
+			block.nonce++
+		}
 	}
-	b.hashOfCurrentBlock = hash
-	fmt.Println("block hash: ", b.hashOfCurrentBlock)
+
+	fmt.Println(`block NUMBER : `, block.blockNumber, `HASH: `, block.hashOfCurrentBlock)
 }
 
 func main() {
-	fmt.Println("Welcome to the blockchain app")
-
-	block0 := block{
-		blockNumber:       0,
-		data:              "data for firsdt block",
-		previousBlockHash: 0,
-	}
-
-	block0.hashBlock()
+	fmt.Println(`Welcome to the blockchain app`)
+	start := time.Now()
 	myChain := []block{}
+	block0 := newBlock(myChain, `This Is the Data that is in Block Zero`)
 	myChain = appendBlockToChain(myChain, block0)
-	block1 := newBlock(myChain, "more data to add")
-	block1.hashBlock()
+	block1 := newBlock(myChain, `This is the data that will be in Block 1`)
 	myChain = appendBlockToChain(myChain, block1)
+	block2 := newBlock(myChain, `Here is my data for block 2`)
+	myChain = appendBlockToChain(myChain, block2)
+	block3 := newBlock(myChain, `Finally I have a third block and this data is good`)
+	myChain = appendBlockToChain(myChain, block3)
+	block4 := newBlock(myChain, `The last block of data`)
+	myChain = appendBlockToChain(myChain, block4)
 
-	fmt.Println("MyChain: ", myChain)
-
-	// hashing function not working
-	// define a better struct for chain
-	// build initial block creation into new block function
+	fmt.Println(`MyChain: length `, len(myChain))
+	end := time.Now()
+	elapsed := end.Sub(start)
+	fmt.Println(`Mining took `, elapsed/5, ` seconds per block`)
 }
